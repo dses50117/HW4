@@ -19,27 +19,41 @@ async def text_to_speech_edge(text, voice, rate):
     使用 Edge TTS 將文字轉換為語音（更自然）
     """
     try:
+        # 清理文字，移除特殊字符
+        text = text.strip()
+        if not text:
+            raise ValueError("文字不能為空")
+        
         # 建立臨時文件
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
             tmp_path = tmp_file.name
         
-        # 設定語速
-        rate_str = f"{int((rate - 1) * 100):+d}%"
+        # 設定語速 (Edge TTS 接受 -50% 到 +100% 的範圍)
+        rate_value = int((rate - 1) * 50)  # 將 0.5-2.0 映射到 -25% 到 +50%
+        rate_str = f"{rate_value:+d}%"
         
         # 生成語音
         communicate = edge_tts.Communicate(text, voice, rate=rate_str)
         await communicate.save(tmp_path)
+        
+        # 檢查文件是否存在且有內容
+        if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
+            raise ValueError("未能生成音頻文件")
         
         # 讀取文件
         with open(tmp_path, 'rb') as f:
             audio_bytes = f.read()
         
         # 刪除臨時文件
-        os.unlink(tmp_path)
+        try:
+            os.unlink(tmp_path)
+        except:
+            pass
         
         return BytesIO(audio_bytes)
     except Exception as e:
         st.error(f"Edge TTS 轉換發生錯誤: {e}")
+        st.info(f"語音代碼: {voice}, 文字長度: {len(text)}")
         return None
 
 def text_to_speech(text, lang, slow):
@@ -87,9 +101,9 @@ with st.sidebar:
             "中文男聲 (雲陽 - 新聞)": "zh-CN-YunyangNeural",
             "台灣女聲 (曉臻)": "zh-TW-HsiaoChenNeural",
             "台灣男聲 (雲哲)": "zh-TW-YunJheNeural",
-            "英文女聲 (Jenny - 美國)": "en-US-JennyNeural",
-            "英文男聲 (Guy - 美國)": "en-US-GuyNeural",
-            "英文女聲 (Sonia - 英國)": "en-GB-SoniaNeural",
+            "英文女聲 (Jenny)": "en-US-JennyNeural",
+            "英文男聲 (Guy)": "en-US-GuyNeural",
+            "英文女聲 (Sonia 英國)": "en-GB-SoniaNeural",
         }
         
         selected_voice_label = st.selectbox(
