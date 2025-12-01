@@ -2,6 +2,10 @@
 
 一個基於 Streamlit 和 gTTS 的簡易文字轉語音網頁應用程式，支援多種語言的語音合成。
 
+## 📖 專案說明
+
+本專案以**蔡炎龍老師之 `Dia_文字轉語音.ipynb`** 為學習範本，開發出一個基於 Streamlit 與 gTTS（Google Text-to-Speech）的簡易文字轉語音（Text-to-Speech, TTS）網頁應用程式。系統提供直覺的使用者介面，使用者可輸入任意文本，並選擇語言後立即產生語音音檔。由於 gTTS 支援多種語言，本應用能涵蓋中文、英文、日文等多語系語音合成需求。整體系統架構輕量、部署容易，適合作為語音科技入門教學、快速原型開發（prototype）或一般使用者的文字轉語音工具。
+
 ## ✨ 功能特色
 
 - 🌍 支援多種語言（中文、英文、日文、韓文、法文、德文等）
@@ -97,9 +101,11 @@ HW4/
 
 ## 👨‍💻 作者
 
-您的名字
+dses50117
 
 ## 🙏 致謝
 
+- **蔡炎龍老師** - 提供 `Dia_文字轉語音.ipynb` 學習範本
 - [Streamlit](https://streamlit.io/) - 優秀的 Web 應用框架
 - [gTTS](https://gtts.readthedocs.io/) - Google Text-to-Speech API 包裝器
+- [Dia Project](https://github.com/nari-labs/dia) - 啟發本專案的 TTS 模型
