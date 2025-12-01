@@ -19,41 +19,40 @@ async def text_to_speech_edge(text, voice, rate):
     使用 Edge TTS 將文字轉換為語音（更自然）
     """
     try:
-        # 清理文字，移除特殊字符
+        # 清理文字
         text = text.strip()
         if not text:
             raise ValueError("文字不能為空")
         
-        # 建立臨時文件
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
-            tmp_path = tmp_file.name
-        
-        # 設定語速 (Edge TTS 接受 -50% 到 +100% 的範圍)
-        rate_value = int((rate - 1) * 50)  # 將 0.5-2.0 映射到 -25% 到 +50%
+        # 設定語速
+        rate_value = int((rate - 1) * 50)
         rate_str = f"{rate_value:+d}%"
         
-        # 生成語音
+        # 使用內存緩衝區直接收集音頻數據
+        audio_data = BytesIO()
+        
+        # 生成語音並直接寫入內存
         communicate = edge_tts.Communicate(text, voice, rate=rate_str)
-        await communicate.save(tmp_path)
         
-        # 檢查文件是否存在且有內容
-        if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
-            raise ValueError("未能生成音頻文件")
+        # 收集音頻片段
+        audio_chunks = []
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_chunks.append(chunk["data"])
         
-        # 讀取文件
-        with open(tmp_path, 'rb') as f:
-            audio_bytes = f.read()
+        # 檢查是否有音頻數據
+        if not audio_chunks:
+            raise ValueError("未收到音頻數據，可能是網路問題或語音代碼不正確")
         
-        # 刪除臨時文件
-        try:
-            os.unlink(tmp_path)
-        except:
-            pass
+        # 合併音頻數據
+        audio_bytes = b''.join(audio_chunks)
+        audio_data.write(audio_bytes)
+        audio_data.seek(0)
         
-        return BytesIO(audio_bytes)
+        return audio_data
     except Exception as e:
-        st.error(f"Edge TTS 轉換發生錯誤: {e}")
-        st.info(f"語音代碼: {voice}, 文字長度: {len(text)}")
+        st.error(f"Edge TTS 錯誤: {str(e)}")
+        st.warning("⚠️ 自動切換到 gTTS...")
         return None
 
 def text_to_speech(text, lang, slow):
@@ -150,14 +149,27 @@ if st.button("🔊 開始轉換", type="primary"):
         st.warning("⚠️ 請先輸入文字再進行轉換！")
     else:
         with st.spinner('正在生成語音...'):
+            audio_bytes = None
+            
             if tts_engine.startswith("Edge"):
-                # 使用 Edge TTS
-                audio_bytes = asyncio.run(text_to_speech_edge(text_input, voice_code, speed_rate))
+                # 嘗試使用 Edge TTS
+                try:
+                    audio_bytes = asyncio.run(text_to_speech_edge(text_input, voice_code, speed_rate))
+                except Exception as e:
+                    st.warning(f"Edge TTS 失敗，切換到 gTTS: {e}")
+                
+                # 如果 Edge TTS 失敗，自動降級到 gTTS
+                if audio_bytes is None:
+                    # 自動判斷語言
+                    if any('\u4e00' <= char <= '\u9fff' for char in text_input):
+                        fallback_lang = "zh-tw"
+                    else:
+                        fallback_lang = "en"
+                    audio_bytes = text_to_speech(text_input, fallback_lang, False)
             else:
                 # 使用 gTTS
                 audio_bytes = text_to_speech(text_input, lang_code, slow_speed)
             
-            # 模擬一點延遲讓體驗更流暢 (可選)
             time.sleep(0.3)
 
         if audio_bytes:
@@ -173,6 +185,8 @@ if st.button("🔊 開始轉換", type="primary"):
                 file_name=f"tts_output_{int(time.time())}.mp3",
                 mime="audio/mp3"
             )
+        else:
+            st.error("❌ 轉換失敗，請稍後再試或使用 gTTS 引擎")
 
 # 頁尾資訊
 st.markdown("---")
